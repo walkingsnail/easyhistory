@@ -22,15 +22,20 @@ class Day:
         self.store = store.use(export=export, path=path, dtype='D')
 
     def init(self):
-        stock_codes = self.store.init_stock_codes
+        stock_codes = self.store.init_stock_codes  
         pool = ThreadPool(10)
         pool.map(self.init_stock_history, stock_codes)
 
     def update(self):
         """ 更新已经下载的历史数据 """
         stock_codes = self.store.update_stock_codes
-        pool = ThreadPool(2)
+        pool = ThreadPool(4)
         pool.map(self.update_single_code, stock_codes)
+
+    def day2week(self):
+        stock_codes = self.store.update_stock_codes
+        pool = ThreadPool(10)
+        pool.map(self.store.write_week_his, stock_codes)
 
     def update_single_code(self, stock_code):
         """ 更新对应的股票文件历史行情
@@ -70,6 +75,8 @@ class Day:
         return updated_data
 
     def init_stock_history(self, stock_code):
+        if stock_code.startswith(('399', '150', '159', '16', '55', '99')):
+            return
         all_history = self.get_all_history(stock_code)
         if len(all_history) <= 0:
             return
@@ -118,10 +125,10 @@ class Day:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0; rv:11.0) like Gecko'
         }
-        print('request {},{},{}'.format(stock_code, year, quarter))
+        #print('request {},{},{}'.format(stock_code, year, quarter))
         url = self.SINA_API.format(stock_code=stock_code)
         rep = list()
-        loop_nums = 10
+        loop_nums = 2
         for i in range(loop_nums):
             try:
                 rep = requests.get(url, params, timeout=3, headers=headers)
@@ -129,13 +136,13 @@ class Day:
             except requests.ConnectionError:
                 time.sleep(60)
             except Exception as e:
-                with open('error.log', 'a+') as f:
+                with open('easyhistoryerror.log', 'a+') as f:
                     f.write(str(e))
 
-        print('end request {}, {}, {}'.format(stock_code, year, quarter))
-        if rep is None:
-            with open('error.txt', 'a+') as f:
-                f.write('{},{},{}'.format(stock_code, year, quarter))
+        #print('end request {}, {}, {}'.format(stock_code, year, quarter))
+        if not rep:
+            with open('easyhistoryerror.txt', 'a+') as f:
+                f.write('{},{},{};'.format(stock_code, year, quarter))
             return list()
         res = self.handle_quarter_history(rep.text)
         return res

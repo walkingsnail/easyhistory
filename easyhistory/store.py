@@ -22,6 +22,7 @@ class Store:
 
 class CSVStore(Store):
     def __init__(self, path, dtype):
+        self.week_path = os.path.join(path, 'week')
         if dtype.lower() in ['d']:
             self.path = os.path.join(path, 'day')
         self.result_path = os.path.join(self.path, 'data')
@@ -39,16 +40,15 @@ class CSVStore(Store):
                 his = pd.read_csv(csv_file_path)
             except ValueError:
                 return
-
             updated_data_start_date = updated_data[0][0]
-            old_his = his[his.date < updated_data_start_date]
+            old_his = his[his.Date < updated_data_start_date]
             updated_his = pd.DataFrame(updated_data, columns=his.columns)
             his = old_his.append(updated_his)
         else:
             his = pd.DataFrame(updated_data,
-                               columns=['date', 'open', 'high', 'close', 'low', 'volume', 'amount', 'factor'])
+                               columns=['Date', 'Open', 'High', 'Close', 'Low', 'Volume', 'Amount', 'Factor'])
         his.to_csv(csv_file_path, index=False)
-        date = his.iloc[-1].date
+        date = his.iloc[-1].Date
         self.write_summary(stock_code, date)
         self.write_factor_his(stock_code, his)
 
@@ -73,9 +73,34 @@ class CSVStore(Store):
 
     def write_factor_his(self, stock_code, his):
         result_file_path = os.path.join(self.result_path, '{}.csv'.format(stock_code))
-        factor_cols = his.columns.difference(['date'])
+        factor_cols = his.columns.difference(['Date','Volume','Amount'])
+        his['Adj Close'] = his['Close']
         his[factor_cols] = his[factor_cols] / his.factor.max()
         his.to_csv(result_file_path, index=False)
+
+    def write_week_his(self, stock_code):
+        csv_file_path = os.path.join(self.result_path, '{}.csv'.format(stock_code))
+        result_file_path = os.path.join(self.week_path, '{}w.csv'.format(stock_code))
+        stock_data = pd.read_csv(csv_file_path)
+        period_type = 'W'
+        for i in range(len(stock_data)):
+            stock_data.iloc[i,0] = datetime.strptime(stock_data.iloc[i,0],"%Y-%m-%d")
+        # 将 date 设定为 index
+        stock_data.set_index('Date', inplace=True)
+        # 进行转换，周线的每个变量都等于那一周最后一个交易日的变量值
+        period_stock_data = stock_data.resample(period_type).last()
+        # 轴线的 open 等于那一周中第一个交易日的 open
+        period_stock_data['Open'] = stock_data['Open'].resample(period_type).first()
+        # 周线的 high 等于那一周中 high 的最大值
+        period_stock_data['High'] = stock_data['High'].resample(period_type).max()
+        # 周线的 low 等于那一周中 low 的最小值
+        period_stock_data['Low'] = stock_data['Low'].resample(period_type).min()
+        # 轴线的 volume 和 money 等于那一周中 volume 和 money 的各自的和
+        period_stock_data['Volume'] = stock_data['Volume'].resample(period_type).sum()
+        period_stock_data['Amount'] = stock_data['Amount'].resample(period_type).sum()
+        period_stock_data.reset_index(inplace = True)
+        # =============== 导出数据
+        period_stock_data.to_csv(result_file_path, index = False)
 
     @property
     def init_stock_codes(self):
