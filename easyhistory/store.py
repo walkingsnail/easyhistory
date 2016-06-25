@@ -23,34 +23,39 @@ class Store:
 class CSVStore(Store):
     def __init__(self, path, dtype):
         self.week_path = os.path.join(path, 'week')
+        self.index_path = os.path.join(path, 'index')
         if dtype.lower() in ['d']:
             self.path = os.path.join(path, 'day')
         self.result_path = os.path.join(self.path, 'data')
         self.raw_path = os.path.join(self.path, 'raw_data')
 
-    def write(self, stock_code, updated_data):
-        if not os.path.exists(self.result_path):
-            os.makedirs(self.result_path)
-        if not os.path.exists(self.raw_path):
-            os.makedirs(self.raw_path)
+    def write(self, stock_code, updated_data, type='stk'):
+        if type == 'stk':
+            if not os.path.exists(self.result_path):
+                os.makedirs(self.result_path)
+            if not os.path.exists(self.raw_path):
+                os.makedirs(self.raw_path)
 
-        csv_file_path = os.path.join(self.raw_path, '{}.csv'.format(stock_code))
-        if os.path.exists(csv_file_path):
-            try:
-                his = pd.read_csv(csv_file_path)
-            except ValueError:
-                return
-            updated_data_start_date = updated_data[0][0]
-            old_his = his[his.Date < updated_data_start_date]
-            updated_his = pd.DataFrame(updated_data, columns=his.columns)
-            his = old_his.append(updated_his)
+            csv_file_path = os.path.join(self.raw_path, '{}.csv'.format(stock_code))
+            if os.path.exists(csv_file_path):
+                try:
+                    his = pd.read_csv(csv_file_path)
+                except ValueError:
+                    return
+                updated_data_start_date = updated_data[0][0]
+                old_his = his[his.Date < updated_data_start_date]
+                updated_his = pd.DataFrame(updated_data, columns=his.columns)
+                his = old_his.append(updated_his)
+            else:
+                his = pd.DataFrame(updated_data,
+                                   columns=['Date', 'Open', 'High', 'Close', 'Low', 'Volume', 'Amount', 'factor'])
+            his.to_csv(csv_file_path, index=False)
+            date = his.iloc[-1].Date
+            self.write_summary(stock_code, date)
+            self.write_factor_his(stock_code, his)
         else:
-            his = pd.DataFrame(updated_data,
-                               columns=['Date', 'Open', 'High', 'Close', 'Low', 'Volume', 'Amount', 'Factor'])
-        his.to_csv(csv_file_path, index=False)
-        date = his.iloc[-1].Date
-        self.write_summary(stock_code, date)
-        self.write_factor_his(stock_code, his)
+            csv_file_path = os.path.join(self.index_path, 'index{}.csv'.format(stock_code))
+            updated_data.to_csv(csv_file_path, index=False)
 
     def get_his_stock_date(self, stock_code):
         summary_path = os.path.join(self.raw_path, '{}_summary.json'.format(stock_code))
@@ -73,14 +78,19 @@ class CSVStore(Store):
 
     def write_factor_his(self, stock_code, his):
         result_file_path = os.path.join(self.result_path, '{}.csv'.format(stock_code))
-        factor_cols = his.columns.difference(['Date','Volume','Amount'])
         his['Adj Close'] = his['Close']
+        factor_cols = his.columns.difference(['Date','Volume','Amount']) 
         his[factor_cols] = his[factor_cols] / his.factor.max()
         his.to_csv(result_file_path, index=False)
 
-    def write_week_his(self, stock_code):
-        csv_file_path = os.path.join(self.result_path, '{}.csv'.format(stock_code))
-        result_file_path = os.path.join(self.week_path, '{}w.csv'.format(stock_code))
+    def write_week_his(self, stock_code, type = 'stk'):
+        if type == 'stk':
+            csv_file_path = os.path.join(self.result_path, '{}.csv'.format(stock_code))
+            result_file_path = os.path.join(self.week_path, '{}w.csv'.format(stock_code))
+        else:
+            csv_file_path = os.path.join(self.index_path, 'index{}.csv'.format(stock_code))
+            result_file_path = os.path.join(self.index_path, 'index{}w.csv'.format(stock_code))            
+
         stock_data = pd.read_csv(csv_file_path)
         period_type = 'W'
         for i in range(len(stock_data)):
@@ -99,6 +109,7 @@ class CSVStore(Store):
         period_stock_data['Volume'] = stock_data['Volume'].resample(period_type).sum()
         period_stock_data['Amount'] = stock_data['Amount'].resample(period_type).sum()
         period_stock_data.reset_index(inplace = True)
+        period_stock_data.dropna()
         # =============== 导出数据
         period_stock_data.to_csv(result_file_path, index = False)
 

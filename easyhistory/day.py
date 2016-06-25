@@ -8,7 +8,7 @@ from multiprocessing.pool import ThreadPool
 
 import requests
 from pyquery import PyQuery
-
+import tushare
 from . import helpers
 from . import store
 
@@ -32,10 +32,18 @@ class Day:
         pool = ThreadPool(4)
         pool.map(self.update_single_code, stock_codes)
 
+        index_data = tushare.get_h_data('000001', start='2002-02-02', index=True)
+        index_data = index_data.reset_index()
+        index_data.columns = ['Date', 'Open', 'High', 'Close', 'Low', 'Volume', 'Amount']
+        index_data['Adj Close'] = index_data['Close']
+        self.store.write('000001', index_data, 'index')
+
     def day2week(self):
         stock_codes = self.store.update_stock_codes
         pool = ThreadPool(10)
         pool.map(self.store.write_week_his, stock_codes)
+
+        self.store.write_week_his('000001', 'index')
 
     def update_single_code(self, stock_code):
         """ 更新对应的股票文件历史行情
@@ -116,7 +124,7 @@ class Day:
 
     def get_quarter_history(self, stock_code, year, quarter):
         year = int(year)
-        if year < 1990:
+        if year < 2002:
             return list()
         params = dict(
                 year=year,
@@ -131,17 +139,17 @@ class Day:
         loop_nums = 2
         for i in range(loop_nums):
             try:
-                rep = requests.get(url, params, timeout=3, headers=headers)
+                rep = requests.get(url, params, timeout=2, headers=headers)
                 break
             except requests.ConnectionError:
-                time.sleep(60)
+                time.sleep(10)
             except Exception as e:
-                with open('easyhistoryerror.log', 'a+') as f:
+                with open('easyhistoryerror.txt', 'a+') as f:
                     f.write(str(e))
 
         #print('end request {}, {}, {}'.format(stock_code, year, quarter))
         if not rep:
-            with open('easyhistoryerror.txt', 'a+') as f:
+            with open('easyhistoryerror.log', 'a+') as f:
                 f.write('{},{},{};'.format(stock_code, year, quarter))
             return list()
         res = self.handle_quarter_history(rep.text)
