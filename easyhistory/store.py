@@ -2,7 +2,7 @@
 import json
 import os
 from datetime import datetime
-
+import talib
 import easyutils
 import pandas as pd
 
@@ -87,9 +87,11 @@ class CSVStore(Store):
         if type == 'stk':
             csv_file_path = os.path.join(self.result_path, '{}.csv'.format(stock_code))
             result_file_path = os.path.join(self.week_path, '{}w.csv'.format(stock_code))
+            position_file_path = os.path.join(self.week_path, '{}wp.csv'.format(stock_code)) 
         else:
             csv_file_path = os.path.join(self.index_path, 'index{}.csv'.format(stock_code))
-            result_file_path = os.path.join(self.index_path, 'index{}w.csv'.format(stock_code))            
+            result_file_path = os.path.join(self.index_path, 'index{}w.csv'.format(stock_code))    
+            position_file_path = os.path.join(self.index_path, 'index{}wp.csv'.format(stock_code))          
 
         stock_data = pd.read_csv(csv_file_path)
         period_type = 'W'
@@ -109,9 +111,27 @@ class CSVStore(Store):
         period_stock_data['Volume'] = stock_data['Volume'].resample(period_type).sum()
         period_stock_data['Amount'] = stock_data['Amount'].resample(period_type).sum()
         period_stock_data.reset_index(inplace = True)
-        period_stock_data.dropna()
+        period_stock_data.dropna(inplace = True)
         # =============== 导出数据
         period_stock_data.to_csv(result_file_path, index = False)
+
+        # Position mgmt
+        close = period_stock_data['Close'].values
+        period_stock_data['ma5'] = talib.MA(close,5)
+        period_stock_data['ma10'] = talib.MA(close, 10)
+        period_stock_data['ma20'] = talib.MA(close, 20)
+        period_stock_data['ma20_1'] = period_stock_data['ma20'].shift(1)
+
+        def f(x):
+            if (x['Close'] > x['ma5']) & (x['ma5'] > x['ma10']) & (x['ma20'] > x['ma20_1']):
+                return 1.0
+
+        period_stock_data['position'] = period_stock_data.apply(f, axis=1)
+        period_stock_data.fillna(0, inplace = True)
+        period_stock_data.set_index('Date', inplace = True)
+        period_stock_data.drop(['Open','High','Low','Volume','Amount','Adj Close','ma5','ma10','ma20','ma20_1'],axis=1, inplace = True)
+        period_stock_data = period_stock_data.resample('D').pad()
+        period_stock_data.to_csv(position_file_path, index = True)
 
     @property
     def init_stock_codes(self):

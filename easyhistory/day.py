@@ -32,6 +32,7 @@ class Day:
         pool = ThreadPool(4)
         pool.map(self.update_single_code, stock_codes)
 
+    def update_index(self):
         index_data = tushare.get_h_data('000001', start='2002-02-02', index=True)
         index_data = index_data.reset_index()
         index_data.columns = ['Date', 'Open', 'High', 'Close', 'Low', 'Volume', 'Amount']
@@ -42,6 +43,7 @@ class Day:
         stock_codes = self.store.update_stock_codes
         pool = ThreadPool(10)
         pool.map(self.store.write_week_his, stock_codes)
+        print ('starting index day2week...')
 
         self.store.write_week_his('000001', 'index')
 

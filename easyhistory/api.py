@@ -16,5 +16,9 @@ def update(dtype='D', export='csv', path='history'):
     return Day(path=path, export=export).update()
 
 
+def update_index(dtype='D', export='csv', path='history'):
+    return Day(path=path, export=export).update_index()
+
+
 def day2week(dtype='D', export='csv', path='history'):
     return Day(path=path, export=export).day2week()
