@@ -21,6 +21,10 @@ class Day:
     def __init__(self, path='history', export='csv'):
         self.store = store.use(export=export, path=path, dtype='D')
 
+    def get_stock_codes(self):
+        stock_codes = self.store.update_stock_codes
+        return stock_codes
+
     def init(self):
         stock_codes = self.store.init_stock_codes  
         pool = ThreadPool(10)
