@@ -155,7 +155,7 @@ class Day:
 
         #print('end request {}, {}, {}'.format(stock_code, year, quarter))
         if not rep:
-            with open('easyhistoryerror.log', 'a+') as f:
+            with open('easyhistoryerror.txt', 'a+') as f:
                 f.write('{},{},{};'.format(stock_code, year, quarter))
             return list()
         res = self.handle_quarter_history(rep.text)
