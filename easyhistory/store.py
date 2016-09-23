@@ -5,6 +5,7 @@ from datetime import datetime
 import talib
 import easyutils
 import pandas as pd
+import numpy as np
 
 
 def use(export='csv', **kwargs):
@@ -127,6 +128,7 @@ class CSVStore(Store):
                 return 1.0
 
         period_stock_data['position'] = period_stock_data.apply(f, axis=1)
+        # period_stock_data['position'] = np.where((period_stock_data['Close'] > period_stock_data['ma5']) & (period_stock_data['ma5'] > period_stock_data['ma10']) & (period_stock_data['ma20']) > period_stock_data['ma20_1'], 1.0, 0)
         period_stock_data.fillna(0, inplace = True)
         period_stock_data.set_index('Date', inplace = True)
         period_stock_data.drop(['Open','High','Low','Volume','Amount','Adj Close','ma5','ma10','ma20','ma20_1'],axis=1, inplace = True)

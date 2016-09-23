@@ -41,9 +41,11 @@ class History(object):
         for stock_csv in file_list:
             csv_ext_index_start = -4
             stock_code = stock_csv[:csv_ext_index_start]
-
             csv_path = os.path.join(path, stock_csv)
-            self.market[stock_code] = Indicator(stock_code, pd.read_csv(csv_path, index_col='Date'))
+            try:
+                self.market[stock_code] = Indicator(stock_code, pd.read_csv(csv_path, index_col='Date'))
+            except Exception as e:
+                print ('{}: {}'.format(stock_code, e))
 
     def __getitem__(self, item):
         return self.market[item]
