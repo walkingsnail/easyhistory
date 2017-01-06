@@ -59,7 +59,8 @@ class Day:
         latest_date = self.store.get_his_stock_date(stock_code)
         updated_data = self.get_update_day_history(stock_code, latest_date)
 
-        self.store.write(stock_code, updated_data)
+        if len(updated_data)>0:
+            self.store.write(stock_code, updated_data)
 
     def get_update_day_history(self, stock_code, latest_date):
         data_year = latest_date.year
