@@ -151,8 +151,9 @@ class Day:
             except requests.ConnectionError:
                 time.sleep(10)
             except Exception as e:
-                with open('easyhistoryerror.txt', 'a+') as f:
-                    f.write(str(e))
+                pass
+                # with open('easyhistoryerror.txt', 'a+') as f:
+                #     f.write(str(e))
 
         #print('end request {}, {}, {}'.format(stock_code, year, quarter))
         if not rep:
